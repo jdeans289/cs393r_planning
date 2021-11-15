@@ -90,6 +90,7 @@ class Navigation {
   Eigen::Vector2f PixelUnHash(int hash);
 
 
+
   static constexpr int map_x_max = 45;
   static constexpr int map_x_min = -45;
   static constexpr int map_y_max = 35;
@@ -124,6 +125,7 @@ class Navigation {
 
 
   void DrawCar();
+  void DrawPlan();
   void DrawArcs(float theta, float dist);
 
   void BuildGraph(const string& map_file);
@@ -132,15 +134,6 @@ class Navigation {
 
   Eigen::Vector2f GlobalToRobot(Eigen::Vector2f point);
   vector_map::VectorMap map_;
-
-  // int neighbors[8][2] = { {1, 1},
-  //                       {1, 0},
-  //                       {1, -1},
-  //                       {0, 1},
-  //                       {0, -1},
-  //                       {-1, 1},
-  //                       {-1, 0},
-  //                       {-1, -1} };
 
   std::vector<Eigen::Vector2f> neighbors;
 

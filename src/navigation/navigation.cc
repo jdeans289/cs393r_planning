@@ -61,6 +61,10 @@ bool fEquals (float a, float b) {
   return (a >= b - kEpsilon && a <= b + kEpsilon);
 }
 
+bool vEquals (Eigen::Vector2f a, Eigen::Vector2f b) {
+  return fEquals(a[0], b[0]) && fEquals(a[1], b[1]);
+}
+
 namespace navigation {
 
 Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
@@ -141,9 +145,9 @@ void Navigation::BuildGraph(const string& map_file) {
 
   printf("Grid initialized!\n");
 
-  GOAL = Vector2f(-21, 14);
-  robot_loc_ = Vector2f(-14, 9);
-  MakePlan();
+  // GOAL = Vector2f(-21, 14);
+  // robot_loc_ = Vector2f(-14, 9);
+  // MakePlan();
 }
 
 void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
@@ -183,7 +187,6 @@ void Navigation::MakePlan() {
     
     // printf("Goal: %lf %lf\n", goal_pix[0], goal_pix[1]);
     // printf("loc: %d %d\n", loc_x, loc_y);
-
 
 
     SimpleQueue<int, float> frontier;
@@ -233,12 +236,16 @@ void Navigation::MakePlan() {
     }
 
     const unsigned char color3[] = { 0,0,255 };
-    
+
+
 
     int curr_hash = goal_hash;
+    vector<Vector2f> path_points;
+    path_points.emplace_back(goal_pix);
     while (curr_hash != PixelHash(loc_pix)) {
       curr_hash = parent[curr_hash];
       Vector2f path_loc = PixelUnHash(curr_hash);
+      path_points.emplace_back(path_loc);
       image_real.draw_point(path_loc[0],map_y_width-path_loc[1],color3);
     }
     image_real.draw_point(loc_x,map_y_width-loc_y,color2);
@@ -246,7 +253,45 @@ void Navigation::MakePlan() {
     image_real.save("goalmap.bmp");
     printf("Image saved\n");
 
+    std::reverse(path_points.begin(), path_points.end());
+    path.clear();
+
+    Vector2f curr_p0 = path_points[0];
+    Vector2f curr_p1 = path_points[1];
+    unsigned index = 2;
+    Vector2f curr_direction = curr_p1 - curr_p0;
+    while (index < path_points.size()) {
+      Vector2f next = path_points[index];
+      Vector2f new_direction = next - curr_p1;
+      if (!vEquals(new_direction, curr_direction)) {
+        // Terminate the line and start a new one
+        float p0_x = (curr_p0[0] * map_resolution) +  map_x_min;
+        float p0_y = (curr_p0[1] * map_resolution) +  map_y_min;
+        Vector2f p0 (p0_x, p0_y);
+
+        float p1_x = (curr_p1[0] * map_resolution) +  map_x_min;
+        float p1_y = (curr_p1[1] * map_resolution) +  map_y_min;
+        Vector2f p1 (p1_x, p1_y);
+
+        line2f path_line(p0, p1);
+        path.emplace_back(path_line);
+        curr_p0 = curr_p1;
+        curr_p1 = next;
+        curr_direction = new_direction;
+      } else {
+        // Extend the line
+        curr_p1 = next;
+      }
+      index++;
+    }
+    // Add final line
+    line2f path_line(curr_p0, curr_p1);
+    path.emplace_back(path_line);
+
     printf("Finished with plan!\n");
+    printf("Lines in plan: %lu\n", path.size());
+
+    DrawPlan();
 } 
 
 float Navigation::heuristic(Vector2f current, Vector2f goal) {
@@ -364,6 +409,7 @@ float* Navigation::Simple1DTOC()
   if (VISUALIZE) {
     DrawCar();
     DrawArcs(curvature, dist);
+    DrawPlan();
   }
 
   // Distance needed to deccelerate
@@ -659,6 +705,11 @@ float Navigation::GetAngleBetweenVectors (Eigen::Vector2f a, Eigen::Vector2f b) 
   return angle;
 }
 
+void Navigation::DrawPlan() {
+  for (line2f line : path) {
+  visualization::DrawLine(line.p0, line.p1,0xFF0000,global_viz_msg_);
+  }
+}
 
 void Navigation::DrawCar() {
   float l = LENGTH + SAFETY_MARGIN * 2;
