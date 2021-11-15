@@ -57,6 +57,7 @@ DEFINE_double(min_line_length,
 
 namespace vector_map {
 
+
 void TrimOcclusion(const Vector2f& loc,
                    const line2f& test_line,
                    line2f* trim_line_ptr,
@@ -191,6 +192,41 @@ void TrimOcclusion(const Vector2f& loc,
   } else {
     if (kDebug) printf("Case 7\n");
   }
+}
+
+void VectorMap::GetSceneBounds(Eigen::Vector2f& min, Eigen::Vector2f& max) const {
+  min = lines[0].p0;
+  max = lines[0].p0;
+
+  for (const line2f& l : lines) {
+    // Compare min
+    if (l.p0.x() < min[0])
+      min[0] = l.p0.x();
+
+    if (l.p1.x() < min[0])
+      min[0] = l.p1.x();
+
+    if (l.p0.y() < min[1])
+      min[1] = l.p0.y();
+
+    if (l.p1.y() < min[1])
+      min[1] = l.p1.y();
+
+
+    // Compare max
+    if (l.p0.x() > max[0])
+      max[0] = l.p0.x();
+
+    if (l.p1.x() > max[0])
+      max[0] = l.p1.x();
+
+    if (l.p0.y() > max[1])
+      max[1] = l.p0.y();
+
+    if (l.p1.y() > max[1])
+      max[1] = l.p1.y();
+  }
+
 }
 
 

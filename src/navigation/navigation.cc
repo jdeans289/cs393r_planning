@@ -32,12 +32,17 @@
 #include "shared/ros/ros_helpers.h"
 #include "navigation.h"
 #include "visualization/visualization.h"
+#include "visualization/CImg.h"
 
 using Eigen::Vector2f;
 using amrl_msgs::AckermannCurvatureDriveMsg;
 using amrl_msgs::VisualizationMsg;
 using std::string;
 using std::vector;
+using geometry::line2f;
+using cimg_library::CImg;
+using cimg_library::CImgDisplay;
+
 
 using namespace math_util;
 using namespace ros_helpers;
@@ -76,15 +81,151 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
   global_viz_msg_ = visualization::NewVisualizationMessage(
       "map", "navigation_global");
   InitRosHeader("base_link", &drive_msg_.header);
+  BuildGraph(map_file);
+}
+
+void Navigation::BuildGraph(const string& map_file) {
+  map_.Load(map_file);
+  printf("Initializing...\n");
+
+  image_real = CImg<unsigned char> (map_x_width,map_y_width,1,3,0);
+
+  for (int i = 0; i < map_x_width; i++) {
+    for (int j = 0; j < map_y_width; j++) {
+      occupancy_grid[i][j] = 0;
+    }
+  }
+
+  // printf("map lines: %d\n", (int) map_.lines.size());
+
+  for (size_t j = 0; j < map_.lines.size(); ++j) {
+    const line2f map_line = map_.lines[j];
+    int p0_pixel_x = (map_line.p0.x() - map_x_min) / map_resolution;
+    int p0_pixel_y = (map_line.p0.y() - map_y_min) / map_resolution;
+
+    int p1_pixel_x = (map_line.p1.x() - map_x_min) / map_resolution;
+    int p1_pixel_y = (map_line.p1.y() - map_y_min) / map_resolution;
+
+    // printf("Line: %d %d %d %d\n", p0_pixel_x, p0_pixel_y, p1_pixel_x, p1_pixel_y);
+
+    // All the lines are horizontal or vertical, so cheat a little bit
+    if (abs(p0_pixel_x - p1_pixel_x) < abs(p0_pixel_y - p1_pixel_y)) {
+      for (int y = std::min(p0_pixel_y, p1_pixel_y); y < std::max(p0_pixel_y, p1_pixel_y); y++) {
+        occupancy_grid[p0_pixel_x][y] = 1.0;
+
+        const unsigned char color[] = { 255,255,255 };
+        image_real.draw_point(p0_pixel_x,map_y_width-y,color);
+      }
+    } else {
+      for (int x = std::min(p0_pixel_x, p1_pixel_x); x < std::max(p0_pixel_x, p1_pixel_x); x++) {
+        occupancy_grid[x][p0_pixel_y] = 1.0;
+
+        const unsigned char color[] = { 255,255,255 };
+        image_real.draw_point(x,map_y_width-p0_pixel_y,color);
+      }
+    }
+  }
+
+  printf("Grid initialized!\n");
+
+  GOAL = Vector2f(-21, 9);
+  robot_loc_ = Vector2f(-14, 9);
+  MakePlan();
+
+  // Vector2f pixel(25, 1);
+  // int pixel_hash = PixelHash(pixel);
+  // Vector2f pixel_h = PixelUnHash(pixel_hash);
+  // printf("Pixel: %lf %lf\n", pixel[0], pixel[1]);
+  // printf("Pixel: %d\n", pixel_hash);
+  // printf("Pixel New: %lf %lf\n", pixel_h[0], pixel_h[1]);
+
+
+  // image_real.save("map.bmp");
 }
 
 void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
+  goal_initialized_ = true;
+  GOAL = loc;
+
+  if (localization_initialized_)
+    MakePlan();
+
+}
+
+int Navigation::PixelHash(Vector2f& pixel) {
+  return pixel[0] * map_y_width + pixel[1];
+}
+
+Vector2f Navigation::PixelUnHash(int hash) {
+  int x = hash / map_y_width;
+  int y = hash % map_y_width;
+  return Vector2f(x, y);
+}
+
+void Navigation::MakePlan() {
+
+    int loc_x = (robot_loc_[0] - map_x_min) / map_resolution;
+    int loc_y = (robot_loc_[1] - map_y_min) / map_resolution;
+    Vector2f loc_pix(loc_x, loc_y);
+    const unsigned char color2[] = { 0,255,0 };
+    image_real.draw_point(loc_x,map_y_width-loc_y,color2);
+
+    int goal_x = (GOAL[0] - map_x_min) / map_resolution;
+    int goal_y = (GOAL[1] - map_y_min) / map_resolution;
+    Vector2f goal_pix(loc_x+1, loc_y);
+    int goal_hash = PixelHash(goal_pix);
+
+    const unsigned char color[] = { 255,0,0 };
+    image_real.draw_point(goal_pix[0],map_y_width-goal_pix[1],color);
+    
+    printf("Goal: %d %d\n", goal_x, goal_y);
+    printf("loc: %d %d\n", loc_x, loc_y);
+
+
+    image_real.save("goalmap.bmp");
+    printf("Image saved\n");
+
+    SimpleQueue<int, float> frontier;
+    frontier.Push(PixelHash(loc_pix), 0);
+
+    std::map<int, float> cost;
+    cost[PixelHash(loc_pix)] = 0;
+
+    std::map<int, int> parent;
+    parent[PixelHash(loc_pix)] = -1;
+
+    while (!frontier.Empty()) {
+      int current_hash = frontier.Pop();
+      Eigen::Vector2f current = PixelUnHash(current_hash);
+      if (current_hash == goal_hash) {
+        break;
+      }
+
+      for (int i = 0; i < 8; i++) {
+        Eigen::Vector2f next(current[0] + neighbors[i][0], current[0] + neighbors[i][1]);
+        int next_hash = PixelHash(next);
+        int new_cost = cost[current_hash] + 1;
+        if (cost.find(next_hash) == cost.end() || new_cost < cost[current_hash]) {
+          cost[next_hash] = new_cost;
+          frontier.Push(next_hash, -(new_cost + heuristic(next, goal_pix)));
+          parent[next_hash] = current_hash;
+        }
+      }
+    }
+
+    printf("Finished with plan!\n");
+} 
+
+float Navigation::heuristic(Vector2f current, Vector2f goal) {
+  return (current - goal).norm();
 }
 
 void Navigation::UpdateLocation(const Eigen::Vector2f& loc, float angle) {
   localization_initialized_ = true;
   robot_loc_ = loc;
   robot_angle_ = angle;
+
+  printf("Location: %lf %lf\n", loc[0], loc[1]);
 }
 
 void Navigation::UpdateOdometry(const Vector2f& loc,

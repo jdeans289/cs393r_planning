@@ -52,7 +52,7 @@ TARGET_LINK_LIBRARIES(particle_filter shared_library ${libs})
 ROSBUILD_ADD_EXECUTABLE(navigation
                         src/navigation/navigation_main.cc
                         src/navigation/navigation.cc)
-TARGET_LINK_LIBRARIES(navigation shared_library ${libs})
+TARGET_LINK_LIBRARIES(navigation shared_library ${libs} X11)
 
 ADD_EXECUTABLE(eigen_tutorial
                src/eigen_tutorial.cc)
