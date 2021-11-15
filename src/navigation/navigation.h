@@ -133,14 +133,16 @@ class Navigation {
   Eigen::Vector2f GlobalToRobot(Eigen::Vector2f point);
   vector_map::VectorMap map_;
 
-  int neighbors[8][2] = { {1, 1},
-                        {1, 0},
-                        {1, -1},
-                        {0, 1},
-                        {0, -1},
-                        {-1, 1},
-                        {-1, 0},
-                        {-1, -1} };
+  // int neighbors[8][2] = { {1, 1},
+  //                       {1, 0},
+  //                       {1, -1},
+  //                       {0, 1},
+  //                       {0, -1},
+  //                       {-1, 1},
+  //                       {-1, 0},
+  //                       {-1, -1} };
+
+  std::vector<Eigen::Vector2f> neighbors;
 
 
 
