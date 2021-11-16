@@ -440,49 +440,91 @@ void Navigation::SetGoal()
   for (auto line : path)
   {
       // line here defined by 2 points
-      float m = (line.p1.y() - line.p0.y()) / (line.p1.x() - line.p0.x());
-      float c = line.p0.y() - m * line.p0.x();
-      float p = robot_loc_[0];
-      float q = robot_loc_[1];
-      
-      float A = (pow(m, 2) + 1);
-      float B = 2 * (m * c - m * q - p);
-      float C = (pow(q, 2) - pow(radius, 2) + pow(p, 2) - 2  * c * q + pow(c, 2));
-      
-      float disrciminant = pow(B, 2) - 4 * A * C;
-
-      // Misses Circle
-      if (disrciminant <= 0)
-        continue;
-
-      float x1 = (-B + pow(disrciminant, 0.5)) / (2 * A);
-      float x2 = (-B - pow(disrciminant, 0.5)) / (2 * A);
-      Vector2f intersection = Vector2f(0, 0);
-
-      // Check if point exists between line segment
-      if ((x1 >= line.p0.x() && x1 <= line.p1.x()) || (x1 <= line.p0.x() && x1 >= line.p1.x()))
+      if (abs(line.p1.x() - line.p0.x()) < 0.001)
       {
-        float y = m * x1 + c;
-        intersection = Vector2f(x1, y);
+          float k = line.p1.x();
+          float p = robot_loc_[0];
+          float q = robot_loc_[1];
+          float B = -2 *q;
+          float C = pow(p, 2) + pow(q, 2) - pow(radius, 2) - 2 * k * p + pow(k, 2);
+          float A = 1;
+          float discriminant = pow(B, 2) - 4 * A * C;
+          float y1 = (-B + pow(discriminant, 0.5)) / (2 * A);
+          float y2 = (-B - pow(discriminant, 0.5)) / (2 * A);
+          Vector2f intersection = Vector2f(k, 0);
+
+          // Check if point exists between line segment
+          if ((y1 >= line.p0.y() && y1 <= line.p1.y()) || (y1 <= line.p0.y() && y1 >= line.p1.y()))
+            intersection = Vector2f(y1, k);
+          
+
+          else
+          {
+            intersection = Vector2f(y2, k);
+          }
+
+          visualization::DrawCross(Vector2f(k, y1), 1.0, 0x000000, global_viz_msg_);
+          visualization::DrawCross(Vector2f(k, y2), 1.0, 0x000000, global_viz_msg_);
+
+          float res_x = intersection[0] - p;
+          float res_y = intersection[1] - q;
+          printf("FIRST RES X RES Y %f %f\n", res_x, res_y);
+          float theta = 0;
+          printf("THETA %f\n", theta);
+          res_x = res_x * cos(theta) - res_y * sin(theta);
+          res_y = res_y * cos(theta) + res_x * sin(theta);
+          printf("RES X RES Y %f %f\n", res_x, res_y);
+          GOAL = Vector2f(res_x, res_y);
+          printf("GOAL FOUND -> X = %f  Y = %f\n", GOAL[0], GOAL[1]);
       }
 
       else
       {
-        float y = m * x2 + c;
-        intersection = Vector2f(x2, y);
-      }
+        float m = (line.p1.y() - line.p0.y()) / (line.p1.x() - line.p0.x());
+        float c = line.p0.y() - m * line.p0.x();
+        float p = robot_loc_[0];
+        float q = robot_loc_[1];
+        
+        float A = (pow(m, 2) + 1);
+        float B = 2 * (m * c - m * q - p);
+        float C = (pow(q, 2) - pow(radius, 2) + pow(p, 2) - 2  * c * q + pow(c, 2));
+        
+        float disrciminant = pow(B, 2) - 4 * A * C;
 
-      float res_x = intersection[0] - p;
-      float res_y = intersection[1] - q;
+        // Misses Circle
+        if (disrciminant <= 0)
+          continue;
 
-      float theta = atan2(res_y, res_x);
+        float x1 = (-B + pow(disrciminant, 0.5)) / (2 * A);
+        float x2 = (-B - pow(disrciminant, 0.5)) / (2 * A);
+        Vector2f intersection = Vector2f(0, 0);
 
-      res_x = res_x * cos(theta) - res_y * sin(theta);
-      res_y = res_y * cos(theta) + res_x * sin(theta);
+        // Check if point exists between line segment
+        if ((x1 >= line.p0.x() && x1 <= line.p1.x()) || (x1 <= line.p0.x() && x1 >= line.p1.x()))
+        {
+          float y = m * x1 + c;
+          intersection = Vector2f(x1, y);
+        }
 
-      GOAL = Vector2f(res_x, res_y);
-      printf("GOAL FOUND -> X = %f  Y = %f\n", GOAL[0], GOAL[1]);
-      return;     
+        else
+        {
+          float y = m * x2 + c;
+          intersection = Vector2f(x2, y);
+        }
+        visualization::DrawCross(Vector2f(x1, m * x1 + c), 1.0, 0x000000, global_viz_msg_);
+        visualization::DrawCross(Vector2f(x2, m * x2 + c), 1.0, 0x000000, global_viz_msg_);
+
+        float res_x = intersection[0] - p;
+        float res_y = intersection[1] - q;
+        printf("FIRST RES X RES Y %f %f\n", res_x, res_y);
+        float theta = atan2(res_y, res_x);
+        printf("THETA %f\n", theta);
+        res_x = res_x * cos(theta) - res_y * sin(theta);
+        res_y = res_y * cos(theta) + res_x * sin(theta);
+        printf("RES X RES Y %f %f\n", res_x, res_y);
+        GOAL = Vector2f(res_x, res_y);
+        printf("GOAL FOUND -> X = %f  Y = %f\n", GOAL[0], GOAL[1]);
+      }    
   } 
 }
 
