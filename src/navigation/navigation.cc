@@ -504,7 +504,7 @@ void Navigation::SetGoal()
         float range = pow((pow(intersection[0] - robot_loc_[0], 2) + pow(intersection[1] - robot_loc_[1], 2)), 0.5);
         float theta = atan2(intersection[1] - q, intersection[0] - p);
 
-        GOAL[0] = 0.2 + range * cos(theta);
+        GOAL[0] = range * cos(theta);
         GOAL[1] = range * sin(theta);
 
         visualization::DrawCross(GOAL, 1.0, 0x000FFF, global_viz_msg_);
