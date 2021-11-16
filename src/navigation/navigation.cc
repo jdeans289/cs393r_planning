@@ -437,45 +437,20 @@ void Navigation::SetGoal()
 {
   // Sets Goal based on circle itersection with path
   // Circle centered at (robot_loc_[0], robot_loc[1]) with a radius
+  GOAL = Vector2f(25, 0);
   for (auto line : path)
   {
+
+      float dist1 = pow((pow(line.p1.x() - robot_loc_[0], 2) + pow(line.p1.y() - robot_loc_[1], 2)), 0.5);
+      float dist0 = pow((pow(line.p0.x() - robot_loc_[0], 2) + pow(line.p0.y() - robot_loc_[1], 2)), 0.5);
+
+      if ((dist0 < radius && dist1 < radius) || (dist0 > radius && dist1 > radius))
+        continue;
+
       // line here defined by 2 points
-      if (abs(line.p1.x() - line.p0.x()) < 0.001)
+      if (abs(line.p1.x() - line.p0.x()) < 0.00000000000000000000000000000001)
       {
-          float k = line.p1.x();
-          float p = robot_loc_[0];
-          float q = robot_loc_[1];
-          float B = -2 *q;
-          float C = pow(p, 2) + pow(q, 2) - pow(radius, 2) - 2 * k * p + pow(k, 2);
-          float A = 1;
-          float discriminant = pow(B, 2) - 4 * A * C;
-          float y1 = (-B + pow(discriminant, 0.5)) / (2 * A);
-          float y2 = (-B - pow(discriminant, 0.5)) / (2 * A);
-          Vector2f intersection = Vector2f(k, 0);
-
-          // Check if point exists between line segment
-          if ((y1 >= line.p0.y() && y1 <= line.p1.y()) || (y1 <= line.p0.y() && y1 >= line.p1.y()))
-            intersection = Vector2f(y1, k);
-          
-
-          else
-          {
-            intersection = Vector2f(y2, k);
-          }
-
-          visualization::DrawCross(Vector2f(k, y1), 1.0, 0x000000, global_viz_msg_);
-          visualization::DrawCross(Vector2f(k, y2), 1.0, 0x000000, global_viz_msg_);
-
-          float res_x = intersection[0] - p;
-          float res_y = intersection[1] - q;
-          printf("FIRST RES X RES Y %f %f\n", res_x, res_y);
-          float theta = 0;
-          printf("THETA %f\n", theta);
-          res_x = res_x * cos(theta) - res_y * sin(theta);
-          res_y = res_y * cos(theta) + res_x * sin(theta);
-          printf("RES X RES Y %f %f\n", res_x, res_y);
-          GOAL = Vector2f(res_x, res_y);
-          printf("GOAL FOUND -> X = %f  Y = %f\n", GOAL[0], GOAL[1]);
+          return;
       }
 
       else
@@ -504,26 +479,36 @@ void Navigation::SetGoal()
         {
           float y = m * x1 + c;
           intersection = Vector2f(x1, y);
+          visualization::DrawCross(Vector2f(x1, m * x1 + c), 1.0, 0x000000, global_viz_msg_);
         }
 
         else
         {
           float y = m * x2 + c;
           intersection = Vector2f(x2, y);
+          visualization::DrawCross(Vector2f(x2, m * x2 + c), 1.0, 0x000000, global_viz_msg_);
         }
-        visualization::DrawCross(Vector2f(x1, m * x1 + c), 1.0, 0x000000, global_viz_msg_);
-        visualization::DrawCross(Vector2f(x2, m * x2 + c), 1.0, 0x000000, global_viz_msg_);
 
-        float res_x = intersection[0] - p;
-        float res_y = intersection[1] - q;
-        printf("FIRST RES X RES Y %f %f\n", res_x, res_y);
-        float theta = atan2(res_y, res_x);
-        printf("THETA %f\n", theta);
-        res_x = res_x * cos(theta) - res_y * sin(theta);
-        res_y = res_y * cos(theta) + res_x * sin(theta);
-        printf("RES X RES Y %f %f\n", res_x, res_y);
-        GOAL = Vector2f(res_x, res_y);
-        printf("GOAL FOUND -> X = %f  Y = %f\n", GOAL[0], GOAL[1]);
+        // Wrong?
+        // float res_x = intersection[0] - p;
+        // float res_y = intersection[1] - q;
+        // printf("FIRST RES X RES Y %f %f\n", res_x, res_y);
+        // float theta = atan2(res_y, res_x);
+        // printf("THETA %f\n", theta);
+        // float transform_x = res_x * cos(theta) - res_y * sin(theta);
+        // float transform_y = res_y * cos(theta) + res_x * sin(theta);
+        // printf("RES X RES Y %f %f\n", res_x, res_y);
+        // GOAL = Vector2f(transform_x, transform_y);
+        // printf("GOAL FOUND -> X = %f  Y = %f\n", GOAL[0], GOAL[1]);
+
+        float range = pow((pow(intersection[0] - robot_loc_[0], 2) + pow(intersection[1] - robot_loc_[1], 2)), 0.5);
+        float theta = atan2(intersection[1] - q, intersection[0] - p);
+
+        GOAL[0] = 0.2 + range * cos(theta);
+        GOAL[1] = range * sin(theta);
+
+        visualization::DrawCross(GOAL, 1.0, 0x000FFF, global_viz_msg_);
+        return;
       }    
   } 
 }
@@ -539,7 +524,7 @@ void Navigation::Run() {
 
   // If odometry has not been initialized, we can't do anything.
   if (!odom_initialized_) return;
-  SetGoal();
+  
   // The control iteration goes here. 
   // Feel free to make helper functions to structure the control appropriately.
   
@@ -561,6 +546,7 @@ void Navigation::Run() {
       Eigen::Vector2f delta = GetTranslation(previous_velocity, previous_curvature, time);
       dx = delta[0];
       dy = delta[1];
+      SetGoal();
       theta = GetRotation(previous_velocity, previous_curvature, time);
       TransformPointCloud(dx, dy, theta);
       float* res = Simple1DTOC();
