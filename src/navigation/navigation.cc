@@ -433,6 +433,59 @@ float* Navigation::Simple1DTOC()
   return new float[2] {curvature, std::max(new_v, zero)};
 }
 
+void Navigation::SetGoal()
+{
+  // Sets Goal based on circle itersection with path
+  // Circle centered at (robot_loc_[0], robot_loc[1]) with a radius
+  for (auto line : path)
+  {
+      // line here defined by 2 points
+      float m = (line.p1.y() - line.p0.y()) / (line.p1.x() - line.p0.x());
+      float c = line.p0.y() - m * line.p0.x();
+      float p = robot_loc_[0];
+      float q = robot_loc_[1];
+      
+      float A = (pow(m, 2) + 1);
+      float B = 2 * (m * c - m * q - p);
+      float C = (pow(q, 2) - pow(radius, 2) + pow(p, 2) - 2  * c * q + pow(c, 2));
+      
+      float disrciminant = pow(B, 2) - 4 * A * C;
+
+      // Misses Circle
+      if (disrciminant <= 0)
+        continue;
+
+      float x1 = (-B + pow(disrciminant, 0.5)) / (2 * A);
+      float x2 = (-B - pow(disrciminant, 0.5)) / (2 * A);
+      Vector2f intersection = Vector2f(0, 0);
+
+      // Check if point exists between line segment
+      if ((x1 >= line.p0.x() && x1 <= line.p1.x()) || (x1 <= line.p0.x() && x1 >= line.p1.x()))
+      {
+        float y = m * x1 + c;
+        intersection = Vector2f(x1, y);
+      }
+
+      else
+      {
+        float y = m * x2 + c;
+        intersection = Vector2f(x2, y);
+      }
+
+      float res_x = intersection[0] - p;
+      float res_y = intersection[1] - q;
+
+      float theta = atan2(res_y, res_x);
+
+      res_x = res_x * cos(theta) - res_y * sin(theta);
+      res_y = res_y * cos(theta) + res_x * sin(theta);
+
+      GOAL = Vector2f(res_x, res_y);
+      printf("GOAL FOUND -> X = %f  Y = %f\n", GOAL[0], GOAL[1]);
+      return;     
+  } 
+}
+
 void Navigation::Run() {
   // This function gets called 20 times a second to form the control loop.
   // Clear previous visualizations.
@@ -444,7 +497,7 @@ void Navigation::Run() {
 
   // If odometry has not been initialized, we can't do anything.
   if (!odom_initialized_) return;
-
+  SetGoal();
   // The control iteration goes here. 
   // Feel free to make helper functions to structure the control appropriately.
   
@@ -709,6 +762,13 @@ void Navigation::DrawPlan() {
   for (line2f line : path) {
   visualization::DrawLine(line.p0, line.p1,0xFF0000,global_viz_msg_);
   }
+
+  visualization::DrawArc(robot_loc_,
+             radius,
+             0.0,
+             2 * M_PI,
+             0x00000,
+             global_viz_msg_);
 }
 
 void Navigation::DrawCar() {

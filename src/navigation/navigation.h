@@ -175,6 +175,9 @@ class Navigation {
 
   void MakePlan();
   float heuristic(Eigen::Vector2f current, Eigen::Vector2f goal);
+  void SetGoal();
+
+  float radius = 3.0;
 
   bool goal_initialized_ = false;
   float LATENCY = 0.1;
