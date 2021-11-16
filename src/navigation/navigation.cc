@@ -438,11 +438,18 @@ void Navigation::SetGoal()
   // Sets Goal based on circle itersection with path
   // Circle centered at (robot_loc_[0], robot_loc[1]) with a radius
   GOAL = Vector2f(25, 0);
+  Vector2f temp_goal;
+  Vector2f temp_goal_local;
   for (auto line : path)
   {
 
       float dist1 = pow((pow(line.p1.x() - robot_loc_[0], 2) + pow(line.p1.y() - robot_loc_[1], 2)), 0.5);
       float dist0 = pow((pow(line.p0.x() - robot_loc_[0], 2) + pow(line.p0.y() - robot_loc_[1], 2)), 0.5);
+
+      if (dist1 < radius) {
+        temp_goal_local = line.p1;
+        continue;
+      }
 
       if ((dist0 < radius && dist1 < radius) || (dist0 > radius && dist1 > radius))
         continue;
@@ -450,7 +457,8 @@ void Navigation::SetGoal()
       // line here defined by 2 points
       if (abs(line.p1.x() - line.p0.x()) < 0.00000000000000000000000000000001)
       {
-          return;
+        continue;
+          // return;
       }
 
       else
@@ -479,38 +487,24 @@ void Navigation::SetGoal()
         {
           float y = m * x1 + c;
           intersection = Vector2f(x1, y);
-          visualization::DrawCross(Vector2f(x1, m * x1 + c), 1.0, 0x000000, global_viz_msg_);
+          temp_goal_local = intersection;
         }
 
         else
         {
           float y = m * x2 + c;
           intersection = Vector2f(x2, y);
-          visualization::DrawCross(Vector2f(x2, m * x2 + c), 1.0, 0x000000, global_viz_msg_);
+          temp_goal_local = intersection;
         }
-
-        // Wrong?
-        // float res_x = intersection[0] - p;
-        // float res_y = intersection[1] - q;
-        // printf("FIRST RES X RES Y %f %f\n", res_x, res_y);
-        // float theta = atan2(res_y, res_x);
-        // printf("THETA %f\n", theta);
-        // float transform_x = res_x * cos(theta) - res_y * sin(theta);
-        // float transform_y = res_y * cos(theta) + res_x * sin(theta);
-        // printf("RES X RES Y %f %f\n", res_x, res_y);
-        // GOAL = Vector2f(transform_x, transform_y);
-        // printf("GOAL FOUND -> X = %f  Y = %f\n", GOAL[0], GOAL[1]);
-
-        float range = pow((pow(intersection[0] - robot_loc_[0], 2) + pow(intersection[1] - robot_loc_[1], 2)), 0.5);
-        float theta = atan2(intersection[1] - q, intersection[0] - p);
-
-        GOAL[0] = 0.2 + range * cos(theta);
-        GOAL[1] = range * sin(theta);
-
-        visualization::DrawCross(GOAL, 1.0, 0x000FFF, global_viz_msg_);
-        return;
       }    
   } 
+  
+  visualization::DrawCross(temp_goal_local, 1.0, 0x000000, global_viz_msg_);
+
+  temp_goal = GlobalToRobot(temp_goal_local);
+
+  visualization::DrawCross(temp_goal, 1.0, 0x000FFF, local_viz_msg_);
+  GOAL = temp_goal;
 }
 
 void Navigation::Run() {
