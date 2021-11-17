@@ -183,7 +183,7 @@ class Navigation {
   float LATENCY = 0.1;
 
   float CLEARANCE_WEIGHT = 0.1;
-  float GOAL_WEIGHT = 0.1;
+  float GOAL_WEIGHT = 10;
 
   bool VISUALIZE = 1;
   

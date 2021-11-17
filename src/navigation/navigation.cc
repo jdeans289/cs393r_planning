@@ -237,8 +237,6 @@ void Navigation::MakePlan() {
 
     const unsigned char color3[] = { 0,0,255 };
 
-
-
     int curr_hash = goal_hash;
     vector<Vector2f> path_points;
     path_points.emplace_back(goal_pix);
@@ -252,6 +250,8 @@ void Navigation::MakePlan() {
 
     image_real.save("goalmap.bmp");
     printf("Image saved\n");
+
+    printf("Points in path: %lu\n", path_points.size());
 
     std::reverse(path_points.begin(), path_points.end());
     path.clear();
@@ -285,7 +285,14 @@ void Navigation::MakePlan() {
       index++;
     }
     // Add final line
-    line2f path_line(curr_p0, curr_p1);
+    float p0_x = (curr_p0[0] * map_resolution) +  map_x_min;
+    float p0_y = (curr_p0[1] * map_resolution) +  map_y_min;
+    Vector2f p0 (p0_x, p0_y);
+
+    float p1_x = (curr_p1[0] * map_resolution) +  map_x_min;
+    float p1_y = (curr_p1[1] * map_resolution) +  map_y_min;
+    Vector2f p1 (p1_x, p1_y);
+    line2f path_line(p0, p1);
     path.emplace_back(path_line);
 
     printf("Finished with plan!\n");
@@ -369,7 +376,7 @@ void Navigation::scorePath(struct PathOption& option) {
   TrimDistanceToGoal(option);
   GetClearance(option);
   
-  option.score = option.free_path_length + CLEARANCE_WEIGHT * option.clearance + GOAL_WEIGHT * option.distance_to_goal;
+  option.score = option.free_path_length + CLEARANCE_WEIGHT * option.clearance + -GOAL_WEIGHT * option.distance_to_goal;
 }
 
 // Function returns optimal curvature for robot to take in the range [-1.0, 1.0]
@@ -446,57 +453,41 @@ void Navigation::SetGoal()
       float dist1 = pow((pow(line.p1.x() - robot_loc_[0], 2) + pow(line.p1.y() - robot_loc_[1], 2)), 0.5);
       float dist0 = pow((pow(line.p0.x() - robot_loc_[0], 2) + pow(line.p0.y() - robot_loc_[1], 2)), 0.5);
 
+      // Set to end of segment inside circle. May be overwritten, or maybe not if it is the last segment
       if (dist1 < radius) {
         temp_goal_local = line.p1;
         continue;
       }
 
-      if ((dist0 < radius && dist1 < radius) || (dist0 > radius && dist1 > radius))
+      // Segment completely inside circle, we don't care
+      if ((dist0 < radius && dist1 < radius))
         continue;
 
-      // line here defined by 2 points
-      if (abs(line.p1.x() - line.p0.x()) < 0.00000000000000000000000000000001)
-      {
+      // Segment begins and ends outside the circle - we might care
+      // if (dist0 > radius && dist1 > radius) {
+      float dis;
+      Vector2f point;
+      bool inter = geometry::FurthestFreePointCircle (line.p0, line.p1, robot_loc_, radius, &dis, &point);
+      if (!inter)
         continue;
-          // return;
-      }
 
-      else
-      {
-        float m = (line.p1.y() - line.p0.y()) / (line.p1.x() - line.p0.x());
-        float c = line.p0.y() - m * line.p0.x();
-        float p = robot_loc_[0];
-        float q = robot_loc_[1];
-        
-        float A = (pow(m, 2) + 1);
-        float B = 2 * (m * c - m * q - p);
-        float C = (pow(q, 2) - pow(radius, 2) + pow(p, 2) - 2  * c * q + pow(c, 2));
-        
-        float disrciminant = pow(B, 2) - 4 * A * C;
+      Vector2f d = line.p1 - line.p0;
+      Vector2f f = line.p0 - robot_loc_;
 
-        // Misses Circle
-        if (disrciminant <= 0)
-          continue;
+      float a = d.dot( d );
+      float b = 2*f.dot( d );
+      float c = f.dot( f ) - radius*radius;
 
-        float x1 = (-B + pow(disrciminant, 0.5)) / (2 * A);
-        float x2 = (-B - pow(disrciminant, 0.5)) / (2 * A);
-        Vector2f intersection = Vector2f(0, 0);
+      float discriminant = b*b-4*a*c;
 
-        // Check if point exists between line segment
-        if ((x1 >= line.p0.x() && x1 <= line.p1.x()) || (x1 <= line.p0.x() && x1 >= line.p1.x()))
-        {
-          float y = m * x1 + c;
-          intersection = Vector2f(x1, y);
-          temp_goal_local = intersection;
-        }
+      discriminant = sqrt( discriminant );
 
-        else
-        {
-          float y = m * x2 + c;
-          intersection = Vector2f(x2, y);
-          temp_goal_local = intersection;
-        }
-      }    
+
+      // float t1 = (-b - discriminant)/(2*a);
+      float t2 = (-b + discriminant)/(2*a);
+      temp_goal_local = line.p0 + d*t2;
+
+      continue; 
   } 
   
   visualization::DrawCross(temp_goal_local, 1.0, 0x000000, global_viz_msg_);
