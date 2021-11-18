@@ -790,7 +790,7 @@ float Navigation::GetAngleBetweenVectors (Eigen::Vector2f a, Eigen::Vector2f b) 
 
 void Navigation::DrawPlan() {
   for (line2f line : path) {
-  visualization::DrawLine(line.p0, line.p1,0xFF0000,global_viz_msg_);
+  visualization::DrawLine(line.p0, line.p1,0x45f542,global_viz_msg_);
   }
 
   visualization::DrawArc(robot_loc_,

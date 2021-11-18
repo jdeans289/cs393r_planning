@@ -470,7 +470,7 @@ void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr,
     }
 
     double size = (double)particles_.size();
-    if (total_time % 200 == 0)
+    if (false)
     {
       Particle location = KMeansClustering(3, x_sum/size, y_sum/size);
       loc = location.loc;
