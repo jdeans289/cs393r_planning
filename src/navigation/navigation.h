@@ -178,6 +178,7 @@ class Navigation {
   void SetGoal();
 
   float radius = 3.0;
+  int bound = 3;
 
   bool goal_initialized_ = false;
   float LATENCY = 0.1;

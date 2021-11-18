@@ -215,8 +215,17 @@ void Navigation::MakePlan() {
 
       for (int i = 0; i < 8; i++) {
         Eigen::Vector2f next = current + neighbors[i];
-        if (occupancy_grid[(int)next[0]][(int)next[1]] == 1)
-          continue;
+        // if (occupancy_grid[(int)next[0]][(int)next[1]] == 1)
+        //   continue;
+
+        bool fails_condition = false;
+        for (int i = -bound; i < bound && !fails_condition; i++)
+          for (int j = -bound; j < bound && !fails_condition; j++)
+            if (occupancy_grid[(int)next[0] + i][(int)next[1] + j] == 1)
+                fails_condition = True;
+
+        if (fails_condition)
+          continue; 
 
         int next_hash = PixelHash(next);
         // printf("Next hash: %d\n", next_hash);
@@ -490,11 +499,11 @@ void Navigation::SetGoal()
       continue; 
   } 
   
-  visualization::DrawCross(temp_goal_local, 1.0, 0x000000, global_viz_msg_);
+  visualization::DrawCross(temp_goal_local, 0.1, 0x000000, global_viz_msg_);
 
   temp_goal = GlobalToRobot(temp_goal_local);
 
-  visualization::DrawCross(temp_goal, 1.0, 0x000FFF, local_viz_msg_);
+  visualization::DrawCross(temp_goal, 0.1, 0x000FFF, local_viz_msg_);
   GOAL = temp_goal;
 }
 
