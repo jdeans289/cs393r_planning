@@ -221,8 +221,16 @@ void Navigation::MakePlan() {
         bool fails_condition = false;
         for (int i = -bound; i < bound && !fails_condition; i++)
           for (int j = -bound; j < bound && !fails_condition; j++)
+          {
+            if ((int)next[0] + i < 0 || (int)next[1] + j < 0)
+              continue;
+            
+            if ((int)next[0] + i >= map_x_width || (int)next[1] + j >= map_y_width)
+              continue;
+
             if (occupancy_grid[(int)next[0] + i][(int)next[1] + j] == 1)
                 fails_condition = True;
+          }
 
         if (fails_condition)
           continue; 
