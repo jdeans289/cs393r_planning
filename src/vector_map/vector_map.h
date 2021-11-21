@@ -74,6 +74,9 @@ struct VectorMap {
   void Load(const std::string& file);
 
   bool Intersects(const Eigen::Vector2f& v0, const Eigen::Vector2f& v1) const ;
+
+  void GetSceneBounds(Eigen::Vector2f& min, Eigen::Vector2f& max) const;
+
   std::vector<geometry::line2f> lines;
   std::string file_name;
 };

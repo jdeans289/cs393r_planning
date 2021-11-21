@@ -150,7 +150,7 @@ class ParticleFilter {
 
   int visualize_particle_filter = 1;
 
-  const float k = 1.0;
+  const float k = 0.5;
   const float odom_var_x = 0.1;
   const float odom_var_y = 0.1;
   const float odom_var_t = 0.1;

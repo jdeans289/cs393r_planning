@@ -23,6 +23,16 @@
 
 #include "eigen3/Eigen/Dense"
 #include <math.h>
+#include "vector_map/vector_map.h"
+#include "simple_queue.h"
+#include "visualization/CImg.h"
+
+
+using std::string;
+using geometry::line2f;
+using cimg_library::CImg;
+using cimg_library::CImgDisplay;
+
 
 #ifndef NAVIGATION_H
 #define NAVIGATION_H
@@ -47,6 +57,7 @@ struct PathOption {
   float score;
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 };
+
 
 class Navigation {
  public:
@@ -74,6 +85,24 @@ class Navigation {
 
   void TrimDistanceToGoal (struct PathOption& option);
 
+  int PixelHash(Eigen::Vector2f& pixel);
+
+  Eigen::Vector2f PixelUnHash(int hash);
+
+
+
+  static constexpr int map_x_max = 45;
+  static constexpr int map_x_min = -45;
+  static constexpr int map_y_max = 35;
+  static constexpr int map_y_min = -35;
+  static constexpr float map_resolution = 0.25;
+  static constexpr int map_x_width = (int) (map_x_max - map_x_min) / map_resolution;
+  static constexpr int map_y_width = (int) (map_y_max - map_y_min) / map_resolution;
+
+  bool occupancy_grid [map_x_width][map_y_width];
+
+  CImg<float> image_real;
+
 
  private:
 
@@ -96,10 +125,18 @@ class Navigation {
 
 
   void DrawCar();
+  void DrawPlan();
   void DrawArcs(float theta, float dist);
+
+  void BuildGraph(const string& map_file);
+
 
 
   Eigen::Vector2f GlobalToRobot(Eigen::Vector2f point);
+  vector_map::VectorMap map_;
+
+  std::vector<Eigen::Vector2f> neighbors;
+
 
 
   // REAL CAR CONSTANTS
@@ -134,10 +171,20 @@ class Navigation {
   Eigen::Vector2f GetTranslation(float velocity, float curvature, float time);
   float GetRotation(float velocity, float curvature, float time);
 
+  std::vector<line2f> path;
+
+  void MakePlan();
+  float heuristic(Eigen::Vector2f current, Eigen::Vector2f goal);
+  void SetGoal();
+
+  float radius = 3.0;
+  int bound = 3;
+
+  bool goal_initialized_ = false;
   float LATENCY = 0.1;
 
   float CLEARANCE_WEIGHT = 0.1;
-  float GOAL_WEIGHT = 0.1;
+  float GOAL_WEIGHT = 10;
 
   bool VISUALIZE = 1;
   
@@ -148,6 +195,8 @@ class Navigation {
   float previous_curvature = 0;
 
   Eigen::Vector2f obstacle; 
+
+
 
   
   // Whether odometry has been initialized.

@@ -140,6 +140,7 @@ void LocalizationCallback(const amrl_msgs::Localization2DMsg msg) {
     printf("Localization t=%f\n", GetWallTime());
   }
   navigation_->UpdateLocation(Vector2f(msg.pose.x, msg.pose.y), msg.pose.theta);
+  
 }
 
 int main(int argc, char** argv) {

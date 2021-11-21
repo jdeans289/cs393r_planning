@@ -22,7 +22,7 @@ using cimg_library::CImgDisplay;
 int main() {
   cout << "CImg Demo.\n";
   // Create a new image of size 500x400, filled with black pixels.
-  CImg<float> image(500,400,1,1,0);
+  CImg<float> image(500,400,1,3,0);
 
   // Draw filled circles of radius 5 pixels.
   float circle_color = 0.5;
